@@ -13,6 +13,8 @@ namespace VneshSort
         // Задаем максимальный размер кучи в байтах
         const int maxMуmoryGC = maxLenghtSplitFile * 5;
 
+        const int maxCoundSplitFile = 20;
+
         static void Main(string[] args)
         {
             // Генерируем файл и возвращаем путь до директории с файлом
@@ -29,6 +31,7 @@ namespace VneshSort
                 string[] splitString = File.ReadAllLines($"{pathDB}//BigFile.txt");
                 Array.Sort(splitString);
                 File.WriteAllLines($"{pathDB}/SortBigFile.txt", splitString);
+                Console.WriteLine("Сортировка завершена");
             }
             else
             {
@@ -38,8 +41,10 @@ namespace VneshSort
                 Program.SortSplitFile(pathDS);
                 // Объединяем маленькие отсортированные файлы
                 MergeSortSplitFile(pathDS, pathDB);
+
             }
         }
+
 
         private static void MergeSortSplitFile(string pathDS, string pathDB)
         {
@@ -51,8 +56,8 @@ namespace VneshSort
             var pathSplitFile = Directory.GetFiles(pathDS);
             // Количество маленьких файлов
             var lenghtPathS = pathSplitFile.Length;
-            // Массив очереди равный по длине количеству маленьких файлов
-            var queueSplitFiles = new Queue<string> [lenghtPathS];
+            // Массив List равный по длине количеству маленьких файлов
+            var listSplitFiles = new List<string>[lenghtPathS];
             // Максимальный размер очереди
             var maxCountQueue = maxLenghtSplitFile / lenghtPathS + 2;
 
@@ -67,12 +72,10 @@ namespace VneshSort
             StreamReader[] splitFile = new StreamReader[lenghtPathS];
             for (int i = 0; i < lenghtPathS; i++)
                 splitFile[i] = new StreamReader(pathSplitFile[i]);
-            
-            // Записываем в массив очереди часть данных из файлов
+
+            // Записываем в массив List часть данных из файлов
             for (var i = 0; i < lenghtPathS; i++)
-            {
-                queueSplitFiles[i] = QueueSplitFile(splitFile[i], maxCountQueue);
-            }
+                listSplitFiles[i] = ListSplitFile(splitFile[i], maxCountQueue);
 
             // Создаем отсортированный файл и в цикле его заполняем
             StreamWriter sortFile = new StreamWriter(pathFile);
@@ -83,25 +86,27 @@ namespace VneshSort
                 var minIndex = -1;
                 for (var i = 0; i < lenghtPathS; i++)
                 {
-                    if (queueSplitFiles[i] != null)
+                    if (listSplitFiles[i] != null)
                     {
-                        if (queueSplitFiles[i].Count == 0)
-                            queueSplitFiles[i] = QueueSplitFile(splitFile[i], maxCountQueue);
-                        if (queueSplitFiles[i].Count == 0)
+                        if (listSplitFiles[i].Count == 0)
+                            listSplitFiles[i] = ListSplitFile(splitFile[i], maxCountQueue);
+                        if (listSplitFiles[i].Count == 0)
                             continue;
 
-                        if (minIndex < 0 || String.CompareOrdinal(min, queueSplitFiles[i].Peek()) > 0)
+                        if (minIndex < 0 || String.CompareOrdinal(min, listSplitFiles[i][0]) > 0)
                         {
-                            min = queueSplitFiles[i].Peek();
+                            min = listSplitFiles[i][0];
                             minIndex = i;
                         }
                     }
                 }
-                if(minIndex == -1)
+                if (minIndex == -1)
                     break;
 
                 // Записываем в файл и изымаем элемент из очереди 
-                sortFile.WriteLine(queueSplitFiles[minIndex].Dequeue());
+                sortFile.WriteLine(listSplitFiles[minIndex][0]);
+                listSplitFiles[minIndex].RemoveAt(0);
+
             }
             sortFile.Close();
 
@@ -116,19 +121,20 @@ namespace VneshSort
         }
 
         // Добавляем в очередь из одного маленького файла часть строк
-        private static Queue<string> QueueSplitFile(StreamReader splitFile, int maxLenghtQueue)
+        private static List<string> ListSplitFile(StreamReader splitFile, int maxLenghtQueue)
         {
-            var queueSplitFile = new Queue<string>();
+            var listSplitFile = new List<string>();
 
             string line;
             var lengthLine = 0;
-            while (maxLenghtQueue >= lengthLine && (line = splitFile.ReadLine()) != null )
+            while (maxLenghtQueue >= lengthLine && (line = splitFile.ReadLine()) != null)
             {
                 lengthLine += line.Length * sizeof(Char);
-                queueSplitFile.Enqueue(line);
+                listSplitFile.Add(line);
             }
-            return queueSplitFile;
+            return listSplitFile;
         }
+
 
         private static void SortSplitFile(string pathDS)
         {
@@ -150,7 +156,7 @@ namespace VneshSort
                 if (GC.GetTotalMemory(false) > maxMуmoryGC)
                     GC.Collect();
             }
-            Console.WriteLine("Маленкие файлы отсортированны");
+            Console.WriteLine("Маленькие файлы отсортированны");
         }
 
         private static string SplitFile(string pathDB)
